@@ -1,8 +1,190 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
-    <meta http-equiv="refresh" content="0; url=frontend/index.html">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>日清 Nisshin 原価分析</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+<script src="data.js"></script>
+<script src="app.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#f5f7fa;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Hiragino Sans GB','Microsoft YaHei','Noto Sans JP',sans-serif;color:#303133}
+.app{max-width:1440px;margin:0 auto;padding:16px 24px}
+
+/* Header */
+.header{display:flex;justify-content:space-between;align-items:center;padding:12px 20px;background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.06);margin-bottom:16px}
+.header-left{display:flex;align-items:center;gap:12px}
+.logo{font-size:18px;font-weight:700;letter-spacing:1px}
+.sep{color:#dcdfe6}
+.sub{font-size:14px;color:#909399}
+.header-right{display:flex;align-items:center;gap:10px}
+.lang-btn{padding:4px 14px;border-radius:12px;border:none;cursor:pointer;font-size:12px;font-weight:600;transition:.2s}
+.lang-cn{background:#909399;color:#fff}
+.lang-ja{background:#67c23a;color:#fff}
+.period-badge{font-size:13px;color:#606266;background:#ecf5ff;padding:3px 10px;border-radius:4px}
+
+/* KPI */
+.kpi-row{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:16px}
+.kpi-card{background:#fff;border-radius:8px;padding:16px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.06);border-left:3px solid transparent}
+.kpi-value{font-size:28px;font-weight:700;line-height:1.2}
+.kpi-label{font-size:13px;color:#909399;margin-top:4px}
+
+/* Chart Row */
+.chart-row{display:flex;gap:12px;margin-bottom:12px}
+.chart-card{background:#fff;border-radius:8px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.06);margin-bottom:12px}
+.chart-full{width:100%}
+.chart-half{flex:1}
+.chart-title{font-size:14px;font-weight:600;margin-bottom:8px}
+.chart-sub{font-size:12px;color:#909399;margin-bottom:8px}
+
+/* Change List */
+.change-list{max-height:400px;overflow-y:auto}
+.change-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:4px;cursor:pointer;border-bottom:1px solid #f2f2f2;transition:background .15s}
+.change-item:hover{background:#f5f7fa}
+.change-code{font-size:11px;color:#909399;min-width:55px;font-family:monospace}
+.change-name{flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.change-bar-wrap{flex:1;height:6px;background:#f0f0f0;border-radius:3px;overflow:hidden;min-width:60px}
+.change-bar{height:100%;border-radius:3px;transition:width .3s}
+.change-val{font-size:13px;font-weight:600;min-width:50px;text-align:right;font-family:monospace}
+.up{color:#f56c6c}.down{color:#67c23a}
+
+/* Table */
+.table-toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px}
+.toolbar-right{display:flex;gap:8px;align-items:center}
+.search-input{padding:6px 10px;border:1px solid #dcdfe6;border-radius:4px;font-size:13px;width:200px}
+.search-input:focus{outline:none;border-color:#409eff}
+.sort-select,.threshold-select{padding:5px 8px;border:1px solid #dcdfe6;border-radius:4px;font-size:12px;background:#fff}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:#fafafa;padding:10px 8px;text-align:left;font-weight:600;color:#606266;border-bottom:2px solid #ebeef5;white-space:nowrap}
+td{padding:8px;border-bottom:1px solid #ebeef5}
+tr:hover{background:#f5f7fa;cursor:pointer}
+.mono{font-family:monospace;font-size:12px}
+.diff-up{color:#f56c6c;font-weight:600}
+.diff-down{color:#67c23a;font-weight:600}
+.pagination{display:flex;justify-content:flex-end;align-items:center;gap:10px;margin-top:12px;font-size:13px;color:#909399}
+.pagination button{padding:4px 12px;border:1px solid #dcdfe6;border-radius:4px;background:#fff;cursor:pointer;font-size:12px}
+.pagination button:disabled{opacity:.4;cursor:default}
+
+/* Badge */
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600}
+.tag-danger{background:#f56c6c;color:#fff}
+.tag-warn{background:#e6a23c;color:#fff}
+.tag-ok{background:#67c23a;color:#fff}
+.badge-danger{background:#f56c6c20;color:#f56c6c;border:1px solid #f56c6c}
+.badge-warn{background:#e6a23c20;color:#e6a23c;border:1px solid #e6a23c}
+.badge-ok{background:#67c23a20;color:#67c23a;border:1px solid #67c23a}
+.btn-link{background:none;border:none;color:#409eff;cursor:pointer;font-size:12px;padding:0}
+.btn-link:hover{text-decoration:underline}
+
+/* Modal */
+.modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.4);z-index:1000;justify-content:center;align-items:flex-start;padding-top:5vh}
+.modal-content{background:#fff;border-radius:10px;width:700px;max-width:90vw;max-height:90vh;overflow-y:auto;box-shadow:0 4px 20px rgba(0,0,0,.15)}
+.modal-header{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid #ebeef5}
+.modal-header h3{font-size:16px}
+.modal-close{background:none;border:none;font-size:22px;cursor:pointer;color:#909399;padding:0 4px}
+.modal-body{padding:20px}
+
+/* Detail Card */
+.detail-card{border-radius:10px;overflow:hidden;border:1px solid #ebeef5}
+.card-up{border-left:4px solid #f56c6c}
+.card-down{border-left:4px solid #67c23a}
+.card-header{padding:16px;background:#fafafa}
+.card-title-row{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.card-code{font-family:monospace;font-size:14px;color:#909399}
+.card-name{font-size:16px;font-weight:600}
+.card-spec{font-size:12px;color:#909399}
+.card-cost-row{display:flex;gap:24px;flex-wrap:wrap}
+.cost-item{display:flex;flex-direction:column;gap:2px}
+.cost-label{font-size:11px;color:#909399}
+.cost-val{font-size:18px;font-weight:700}
+.detail-breakdown{padding:16px}
+.detail-breakdown h4{font-size:13px;font-weight:600;color:#606266;margin-bottom:12px}
+.bd-item{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.bd-name{min-width:65px;font-size:13px;color:#606266}
+.bd-bar-wrap{flex:1;height:20px;background:#f0f0f0;border-radius:10px;overflow:hidden}
+.bd-bar{height:100%;border-radius:10px;opacity:.7;transition:width .5s}
+.bd-vals{display:flex;gap:6px;min-width:200px;justify-content:flex-end;font-family:monospace;font-size:12px;align-items:center}
+.bd-p1{color:#909399}
+.bd-p2{color:#606266}
+.bd-arrow{color:#c0c4cc}
+.bd-diff{min-width:55px;text-align:right;font-weight:600}
+
+@media(max-width:900px){
+  .kpi-row{grid-template-columns:repeat(3,1fr)}
+  .chart-row{flex-direction:column}
+  .header{flex-direction:column;gap:8px}
+  .card-cost-row{gap:12px}
+}
+</style>
 </head>
 <body>
+<div class="app">
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <div class="logo">日清 Nisshin</div>
+      <span class="sep">|</span>
+      <span class="sub" id="app-title"></span>
+    </div>
+    <div class="header-right">
+      <button class="lang-btn lang-cn" id="lang-btn" onclick="toggleLang()">JP</button>
+      <span class="period-badge" id="period"></span>
+    </div>
+  </div>
+
+  <!-- KPI -->
+  <div class="kpi-row" id="kpi-row"></div>
+
+  <!-- Row 1 -->
+  <div class="chart-row">
+    <div class="chart-card chart-half"><div class="chart-title" id="cs-title"></div><div id="chart-structure" style="height:280px"></div></div>
+    <div class="chart-card chart-half"><div class="chart-title" id="tr-title"></div><div id="chart-trend" style="height:280px"></div></div>
+  </div>
+
+  <!-- Row 2: Scatter -->
+  <div class="chart-card chart-full">
+    <div class="chart-title" id="sc-title"></div>
+    <div class="chart-sub" id="sc-sub"></div>
+    <div id="chart-scatter" style="height:400px"></div>
+  </div>
+
+  <!-- Row 3: Top Changes -->
+  <div class="chart-row">
+    <div class="chart-card chart-half"><div class="chart-title" id="top-up-title"></div><div class="change-list" id="top-up-list"></div></div>
+    <div class="chart-card chart-half"><div class="chart-title" id="top-down-title"></div><div class="change-list" id="top-down-list"></div></div>
+  </div>
+
+  <!-- Table -->
+  <div class="chart-card chart-full">
+    <div class="table-toolbar">
+      <div class="chart-title" id="table-title"></div>
+      <div class="toolbar-right" id="toolbar-right"></div>
+    </div>
+    <div style="overflow-x:auto">
+      <table><thead id="table-head"></thead><tbody id="table-body"></tbody></table>
+    </div>
+    <div class="pagination" id="pagination"></div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 id="modal-title"></h3>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="detail-card" id="detail-card">
+        <div class="card-header" id="detail-header"></div>
+        <div class="detail-breakdown">
+          <h4 id="bd-title"></h4>
+          <div id="detail-breakdown"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 </body>
 </html>
